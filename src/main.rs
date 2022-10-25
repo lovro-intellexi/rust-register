@@ -1,51 +1,39 @@
-use couch_rs::document::TypedCouchDocument;
-use couch_rs::error::CouchResult;
-use couch_rs::types::document::DocumentId;
-use couch_rs::CouchDocument;
-use serde::{Deserialize, Serialize};
-//use serde_json::to_value;
-//use std::env;
+use std::sync::Arc;
 
-//TODO: fix String / &str error
-//const DB_HOST: String = env::var("DB_HOST").expect("DB_HOST not found");
-const DB_HOST: &str = "http://localhost:5984";
-const TEST_DB: &str = "sudski_registar";
+use db::RegisterAdapter;
+use handler::handler::Handler;
+use web::WebServer;
 
-#[derive(Serialize, Deserialize, CouchDocument, Debug)]
-pub struct Subject {
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub _id: DocumentId,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub _rev: String,
-    #[serde(rename = "oib")]
-    pub oib: Option<String>,
-    #[serde(rename = "ime")]
-    pub name: String,
-}
+use crate::{db::init_db};
+
+mod db;
+mod web;
+mod model;
+mod handler;
+mod util;
+
+const DEFAULT_WEB_PORT: u16 = 8080;
 
 #[tokio::main]
-async fn main() -> CouchResult<()> {
-    let client = couch_rs::Client::new(&DB_HOST, "root", "pass")?;
-    let db = client.db(TEST_DB).await?;
+async fn main() {
+    let web_port = DEFAULT_WEB_PORT;
 
-    // Insert subject into DB
-    /*let subject_to_save = Subject {
-        _id: "123".to_string(),
-        _rev: "".to_string(),
-        oib: None,
-        name: "Test".to_string(),
-    };
-    let mut value = to_value(subject_to_save)?;
-    db.create(&mut value).await?;
+    //init db
+    let db = init_db().await.expect("Init db failed");
+    let db = Arc::new(db);
 
-    // Change subject data
-    let mut subject: Subject = db.get("123").await?;
-    subject.oib = Some("123456789".to_string()); */
+    //init register adapter
+    let reg_adapter = Arc::new(RegisterAdapter::new(db));
 
-    // Get subject from DB
-    let _subject: Subject = db.get("123").await?;
+    //init handler
+    let handler = Arc::new(Handler::new(reg_adapter));
 
-    println!("{:?}", _subject);
+    //init web server
+    let web_server = Arc::new(WebServer::new(handler));
 
-    Ok(())
+    //start web server
+    match web_server.start_server(web_port).await {
+        Ok(_) => println!("Server ended"),
+        Err(ex) => println!("Web server failed to start: {:?}", ex)
+    }
 }

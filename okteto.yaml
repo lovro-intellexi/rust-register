@@ -9,8 +9,10 @@ sync:
 autocreate: true
 persistentVolume:
   enabled: false
-envirnoment:
-  - DB_HOST = "http://localhost:5984"
-  - DB_NAME = "sudski_registar"
+environment:
+  - DB_HOST="http://localhost:5984"
+  - DB_NAME="sudski_registar"
+  - DB_USER="root"
+  - DB_PASSWORD="pass"
 forward:
   - 8080:8080
