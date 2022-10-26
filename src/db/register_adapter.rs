@@ -1,7 +1,7 @@
 use std::{sync::Arc};
 
 use async_trait::async_trait;
-use couch_rs::{error::CouchError, types::document::DocumentCreatedResult};
+use couch_rs::{error::{CouchError, CouchResult}, types::document::DocumentCreatedResult, document::DocumentCollection};
 use serde_json::json;
 
 use crate::model::Subject;
@@ -22,7 +22,7 @@ impl RegisterAdapter {
 pub trait DbInteractions {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError>;
     async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult;
-    //async fn getSubjectList(&self, limit: Option<String>);
+    async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>>;
 }
 
 #[async_trait]
@@ -34,5 +34,9 @@ impl DbInteractions for RegisterAdapter {
     async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult {
         let mut subject_value = json!(subject);
         self.db.create(&mut subject_value).await
+    }
+
+    async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>> {
+        self.db.get_all().await
     }
 }
