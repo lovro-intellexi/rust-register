@@ -12,6 +12,6 @@ pub struct Subject {
     //status: i32,
     //sud_id_nadlezan: i64,
     //sud_id_sluzba: i64,
-    oib: String,
+    pub oib: String,
     //ino_podruznica: i32,
 }

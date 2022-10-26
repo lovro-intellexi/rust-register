@@ -18,7 +18,15 @@ impl WebServer {
     
         println!("Server running at: localhost:{}", web_port);
         let root_filter = register::register_handler(self.handler.clone());
-        warp::serve(root_filter).run(([127,0,0,1], web_port)).await;
+        //warp::serve(root_filter).run(([127,0,0,1], web_port)).await;
+        let (_adr, fut) = warp::serve(root_filter)
+            .bind_with_graceful_shutdown(([127,0,0,1], 8080), async move {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("failed to listen to shutdown signal");
+            });
+        fut.await;
+        println!("Server shuting down");
         Ok(())
     }
 }
