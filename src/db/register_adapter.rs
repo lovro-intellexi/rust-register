@@ -26,18 +26,6 @@ pub trait DbInteractions {
 #[async_trait]
 impl DbInteractions for RegisterAdapter {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError> {
-        println!("{:?}", id);
-        match self.db.get(id).await {
-            Ok(sub) => {
-                println!("{:?}", sub);
-
-                Ok(sub)
-            },
-            Err(ex) => {
-                println!("{:?}", ex);
-
-                Err(ex)
-            }
-        }
+        self.db.get(id).await
     }
 }
