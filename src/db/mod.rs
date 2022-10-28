@@ -19,7 +19,7 @@ const DB_PASSWORD: &str = "pass";
 pub type Db = Database;
 
 pub async fn init_db() -> Result<Db, CouchError> {
-    new_db(&DB_HOST, DB_NAME, DB_USER, DB_PASSWORD).await
+    new_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD).await
 }
 
 async fn new_db(db_host: &str, db_name: &str, user: &str, password: &str) -> Result<Db, CouchError> {

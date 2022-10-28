@@ -1,17 +1,16 @@
+use std::collections::HashMap;
 use std::{sync::Arc};
 
 use couch_rs::document::DocumentCollection;
 use couch_rs::error::{CouchError, CouchResult};
-//use couch_rs::error::CouchError;
 use couch_rs::types::document::{DocumentCreatedResult};
 use reqwest::StatusCode;
 use serde::Serialize;
-//use warp::reply::Json;
 use warp::{Filter};
 
 use crate::handler::handler::{Handler, HandlerInt};
-use crate::model::Subject;
-use crate::util::with_handler;
+use crate::model::{Subject, RegisterSubject};
+use crate::util::{with_handler, handle_subjects_from_register, check_db_for_new_subjects};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -70,7 +69,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
     // GetSubjectList
     let subject_list = warp::path!("getSubject")
         .and(warp::get())
-        .and(with_handler(handler))
+        .and(with_handler(handler.clone()))
         .then(|handler| async move {
             let result = handle_get_subject_list(handler).await;
             match result {
@@ -85,7 +84,31 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
             }
         });
 
-    subject.or(subject_list).or(create_subject)
+    let get_subjects = warp::path!("getSubjects")
+        .and(warp::get())
+        .and(warp::query::<HashMap<String, String>>())
+        .map(|param: HashMap<String, String>| match param.get("limit") {
+            Some(limit) => {println!("limit = {}", limit); limit.clone()},
+            None => "0".to_string(),
+        })
+        .and(with_handler(handler))
+        .then(|limit: String, handler| async move {
+            let subjects_from_register: Vec<RegisterSubject> = handle_subjects_from_register(limit.clone()).await;
+            check_db_for_new_subjects(subjects_from_register).await;
+            let result = handle_get_subject_list(handler).await;
+            match result {
+                Ok(response) => {
+                    let json = warp::reply::json(&response.get_data());
+                    Box::new(warp::reply::with_status(json, StatusCode::OK))
+                }
+                Err(err) => {
+                    let json = warp::reply::json(&Failure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("Requset failed: {:?}", err)));
+                    Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+                }
+            }
+        });
+
+    subject.or(subject_list).or(create_subject).or(get_subjects)
 }
 
 //TODO fix result type (DocumentCollection, CreateResult...)
@@ -110,7 +133,8 @@ async fn handle_create_subject(handler: Arc<Handler>) -> DocumentCreatedResult {
     let subject = Subject{
         _id: "".to_string(),
         _rev: "".to_string(),
-        oib: "123456789".to_string(),
+        oib: 123456789,
+        name: "Test_Ime_n".to_string()
     };
     handler.create_subject(subject).await
 }

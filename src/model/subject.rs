@@ -8,10 +8,6 @@ pub struct Subject {
     pub _id: DocumentId,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub _rev: String,
-    //mbs: i64,
-    //status: i32,
-    //sud_id_nadlezan: i64,
-    //sud_id_sluzba: i64,
-    pub oib: String,
-    //ino_podruznica: i32,
+    pub oib: i64,
+    pub name: String
 }
