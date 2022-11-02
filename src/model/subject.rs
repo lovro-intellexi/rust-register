@@ -9,5 +9,4 @@ pub struct Subject {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub _rev: String,
     pub oib: i64,
-    pub name: String
 }

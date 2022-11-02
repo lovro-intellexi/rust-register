@@ -1,8 +1,7 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterDetails {
-    mbs: i64,
-    oib: i64,
-    share_capital: f64
+    pub mbs: i64,
+    pub oib: i64,
 }

@@ -1,10 +1,10 @@
 use std::{sync::Arc};
 
 use async_trait::async_trait;
-use couch_rs::{error::{CouchError, CouchResult}, types::document::DocumentCreatedResult, document::DocumentCollection};
+use couch_rs::{error::{CouchError, CouchResult}, types::{document::DocumentCreatedResult, find::FindQuery}, document::{DocumentCollection}};
 use serde_json::json;
 
-use crate::model::Subject;
+use crate::model::{Subject, Details};
 
 use super::Db;
 
@@ -23,6 +23,7 @@ pub trait DbInteractions {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError>;
     async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult;
     async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>>;
+    async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError>;
 }
 
 #[async_trait]
@@ -38,5 +39,10 @@ impl DbInteractions for RegisterAdapter {
 
     async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>> {
         self.db.get_all().await
+    }
+
+    async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError> {
+        let find_query = FindQuery::new(json!({"oib": oib})).limit(1);
+        self.db.find(&find_query).await
     }
 }

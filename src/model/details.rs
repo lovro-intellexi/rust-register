@@ -2,7 +2,7 @@ use couch_rs::{document::TypedCouchDocument, types::document::DocumentId};
 use couch_rs::CouchDocument;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, CouchDocument)]
+#[derive(Serialize, Deserialize, CouchDocument, Debug)]
 pub struct Details {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub _id: DocumentId,
@@ -10,5 +10,4 @@ pub struct Details {
     pub _rev: String,
     mbs: i64,
     oib: i64,
-    share_capital: f64,
 }
