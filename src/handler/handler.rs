@@ -21,7 +21,7 @@ impl Handler {
 #[async_trait]
 pub trait HandlerInt {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError>;
-    async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult;
+    async fn create_subject(&self, details: Details) -> DocumentCreatedResult;
     async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>>;
     async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError>;
 }
@@ -33,8 +33,8 @@ impl HandlerInt for Handler {
         Ok(subject)
     }
 
-    async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult {
-        let subject_id = self.register_adapter.create_subject(subject).await?;
+    async fn create_subject(&self, details: Details) -> DocumentCreatedResult {
+        let subject_id = self.register_adapter.create_subject(details).await?;
         Ok(subject_id)
     }
 

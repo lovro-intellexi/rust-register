@@ -8,6 +8,6 @@ pub struct Details {
     pub _id: DocumentId,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub _rev: String,
-    mbs: i64,
-    oib: i64,
+    pub mbs: i64,
+    pub oib: i64,
 }

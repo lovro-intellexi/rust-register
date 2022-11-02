@@ -21,7 +21,7 @@ impl RegisterAdapter {
 #[async_trait]
 pub trait DbInteractions {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError>;
-    async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult;
+    async fn create_subject(&self, details: Details) -> DocumentCreatedResult;
     async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>>;
     async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError>;
 }
@@ -32,8 +32,8 @@ impl DbInteractions for RegisterAdapter {
         self.db.get(id).await
     }
 
-    async fn create_subject(&self, subject: Subject) -> DocumentCreatedResult {
-        let mut subject_value = json!(subject);
+    async fn create_subject(&self, details: Details) -> DocumentCreatedResult {
+        let mut subject_value = json!(details);
         self.db.create(&mut subject_value).await
     }
 

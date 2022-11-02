@@ -10,8 +10,8 @@ use warp::{Filter};
 
 use crate::handler;
 use crate::handler::handler::{Handler, HandlerInt};
-use crate::model::{Subject, RegisterSubject, RegisterDetails, Details};
-use crate::util::{with_handler, handle_subjects_from_register, check_db_for_new_subjects, handle_get_subject_details};
+use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
+use crate::util::{with_handler, handle_subjects_from_register, check_db_for_new_subjects, handle_get_subject_details, map_details};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -44,24 +44,6 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
                 }
                 Err(_err) => {
                     let json = warp::reply::json(&Failure::new(StatusCode::INTERNAL_SERVER_ERROR, "Ne ide".to_string()));
-                    Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
-                }
-            }
-        });
-
-    // CreateSubject
-    let create_subject = warp::path!("subject")
-        .and(warp::post())
-        .and(with_handler(handler.clone()))
-        .then(|handler| async move {
-            let result = handle_create_subject(handler).await;
-            match result {
-                Ok(response) => {
-                    let json = warp::reply::json(&response);
-                    Box::new(warp::reply::with_status(json, StatusCode::OK))
-                }
-                Err(err) => {
-                    let json = warp::reply::json(&Failure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("Requset failed: {:?}", err)));
                     Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
                 }
             }
@@ -121,12 +103,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         })
         .and(with_handler(handler))
         .then(|oib: i64, handler: Arc<Handler>| async move {
-            let details_from_db: Result<DocumentCollection<Details>, CouchError> = handle_get_details_from_db(handler.clone(), oib).await;
-            println!("{:?}", details_from_db.unwrap().rows.into_iter().nth(0));
-            let subject_from_register: RegisterDetails = handle_get_subject_details(oib.to_string().clone()).await;
-            println!("{:?}", subject_from_register);
-            //TODO add handle function
-            let result = handle_get_subject(handler).await;
+            let result = handle_subject_details(handler, oib).await;
             match result {
                 Ok(response) => {
                     let json = warp::reply::json(&response);
@@ -134,12 +111,12 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
                 }
                 Err(err) => {
                     let json = warp::reply::json(&Failure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("Requset failed: {:?}", err)));
-                    Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+                        Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
                 }
             }
         });
 
-    subject.or(subject_list).or(create_subject).or(get_subjects).or(get_subject_details)
+    subject.or(subject_list).or(get_subjects).or(get_subject_details)
 }
 
 //TODO fix result type (DocumentCollection, CreateResult...)
@@ -160,13 +137,8 @@ async fn handle_get_subject(handler: Arc<Handler>) -> Result<Subject, CouchError
     handler.get_subject("123").await
 }
 
-async fn handle_create_subject(handler: Arc<Handler>) -> DocumentCreatedResult {
-    let subject = Subject{
-        _id: "".to_string(),
-        _rev: "".to_string(),
-        oib: 123456789,
-    };
-    handler.create_subject(subject).await
+async fn handle_create_subject(handler: Arc<Handler>, register_details: &RegisterDetails) -> DocumentCreatedResult {
+    handler.create_subject(map_details(register_details.clone())).await
 }
 
 async fn handle_get_subject_list(handler: Arc<Handler>) -> CouchResult<DocumentCollection<Subject>> {
@@ -175,4 +147,19 @@ async fn handle_get_subject_list(handler: Arc<Handler>) -> CouchResult<DocumentC
 
 async fn handle_get_details_from_db(handler: Arc<Handler>, oib: i64) -> Result<DocumentCollection<Details>, CouchError> {
     handler.get_details(oib).await
+}
+
+async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Details, Error> {
+    let details_from_db: Result<DocumentCollection<Details>, CouchError> = handle_get_details_from_db(handler.clone(), oib).await;
+    // check if result from db has data
+    if !details_from_db.as_ref().unwrap().rows.is_empty() {
+        Ok(details_from_db.unwrap().rows.into_iter().nth(0).unwrap())
+    } else {
+        let details_from_register = handle_get_subject_details(oib).await;
+        handle_create_subject(handler, details_from_register.as_ref().unwrap()).await;
+        match details_from_register {
+            Ok(details) => Ok(map_details(details)),
+            Err(err) => Err(Error { message: "Error getting details from register".to_string() })
+        }
+    }
 }
