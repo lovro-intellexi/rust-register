@@ -19,8 +19,7 @@ pub async fn handle_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
       .await;
   match result {
     Ok(register_subjects) => register_subjects,
-    //TODO handle error
-    Err(_err) => Vec::new()
+    Err(_err) => {println!("Error fetching subjects from register, returing empty array."); Vec::new()}
   }
 }
 

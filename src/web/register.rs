@@ -78,7 +78,6 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         .then(|limit: u64, handler: Arc<Handler>| async move {
             let subjects_from_register: Vec<RegisterSubject> = handle_subjects_from_register(limit).await;
             check_db_for_new_subjects(handler.clone(), subjects_from_register).await;
-            //TODO add handle function
             let result = handle_get_subject_list(handler, Some(limit)).await;
             match result {
                 Ok(response) => {
@@ -97,8 +96,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         .and(warp::query::<HashMap<String, i64>>())
         .map(|param: HashMap<String, i64>| match param.get("oib") {
             Some(oib) =>  oib.clone(),
-            //TODO handle no oib
-            None => 0,
+            None => {println!("OIB parameter is missing, returning 0"); 0},
         })
         .and(with_handler(handler))
         .then(|oib: i64, handler: Arc<Handler>| async move {
