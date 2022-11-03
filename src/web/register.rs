@@ -10,7 +10,7 @@ use warp::{Filter};
 
 use crate::handler::handler::{Handler, HandlerInt};
 use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
-use crate::util::{with_handler, handle_subjects_from_register, check_db_for_new_subjects, handle_get_subject_details, map_details};
+use crate::util::{with_handler, handle_subjects_from_register, handle_get_subject_details, map_details};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -53,7 +53,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         .and(warp::get())
         .and(with_handler(handler.clone()))
         .then(|handler| async move {
-            let result = handle_get_subject_list(handler).await;
+            let result = handle_get_subject_list(handler, None).await;
             match result {
                 Ok(response) => {
                     let json = warp::reply::json(&response.get_data());
@@ -68,18 +68,18 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
 
     let get_subjects = warp::path!("getSubjects")
         .and(warp::get())
-        .and(warp::query::<HashMap<String, String>>())
-        .map(|param: HashMap<String, String>| match param.get("limit") {
-            Some(limit) => {println!("limit = {}", limit); limit.clone()},
-            //TODO handle missing limit case
-            None => "0".to_string(),
+        .and(warp::query::<HashMap<String, u64>>())
+        .map(|param: HashMap<String, u64>| match param.get("limit") {
+            Some(limit) =>  limit.clone(),
+            //if limit is missing, fetch 10 subjects from register
+            None => 10,
         })
         .and(with_handler(handler.clone()))
-        .then(|limit: String, handler| async move {
-            let subjects_from_register: Vec<RegisterSubject> = handle_subjects_from_register(limit.clone()).await;
-            check_db_for_new_subjects(subjects_from_register).await;
+        .then(|limit: u64, handler: Arc<Handler>| async move {
+            let subjects_from_register: Vec<RegisterSubject> = handle_subjects_from_register(limit).await;
+            check_db_for_new_subjects(handler.clone(), subjects_from_register).await;
             //TODO add handle function
-            let result = handle_get_subject_list(handler).await;
+            let result = handle_get_subject_list(handler, Some(limit)).await;
             match result {
                 Ok(response) => {
                     let json = warp::reply::json(&response.get_data());
@@ -140,8 +140,8 @@ async fn handle_create_subject(handler: Arc<Handler>, register_details: &Registe
     handler.create_subject(map_details(register_details.clone())).await
 }
 
-async fn handle_get_subject_list(handler: Arc<Handler>) -> CouchResult<DocumentCollection<Subject>> {
-    handler.get_subject_list().await
+async fn handle_get_subject_list(handler: Arc<Handler>, limit: Option<u64>) -> CouchResult<DocumentCollection<Subject>> {
+    handler.get_subject_list(limit).await
 }
 
 async fn handle_get_details_from_db(handler: Arc<Handler>, oib: i64) -> Result<DocumentCollection<Details>, CouchError> {
@@ -165,6 +165,19 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
                 }
             },
             Err(_err) => Err(Error { message: "Error getting details from register".to_string() })
+        }
+    }
+}
+
+async fn check_db_for_new_subjects(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) {
+    for subject in subjects {
+        let details_from_db = handle_get_details_from_db(handler.clone(), subject.oib).await;
+        // check if subject exists in db
+        if details_from_db.as_ref().unwrap().rows.is_empty() {
+            match handle_create_subject(handler.clone(), &RegisterDetails { mbs: 0, oib: subject.oib }).await {
+                Ok(_) => println!("Subject with oib {} created", subject.oib),
+                Err(err) => println!("Error creating subject with oib: {}", subject.oib)
+            }
         }
     }
 }

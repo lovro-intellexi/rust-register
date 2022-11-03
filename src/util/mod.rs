@@ -8,7 +8,7 @@ pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler
     warp::any().map(move || handler.clone())
   }
 
-pub async fn handle_subjects_from_register(limit: String) -> Vec<RegisterSubject> {
+pub async fn handle_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
   let reqwest_client = reqwest::Client::new();
   let result = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt/?offset=0&limit={}", limit))
       .header("Ocp-Apim-Subscription-Key", "fd2756eee54b4b25b59b586a9185ea3b")
@@ -22,11 +22,6 @@ pub async fn handle_subjects_from_register(limit: String) -> Vec<RegisterSubject
     //TODO handle error
     Err(_err) => Vec::new()
   }
-}
-
-pub async fn check_db_for_new_subjects(subjects: Vec<RegisterSubject>) {
-  let db_subjects = map_subjects(subjects);
-  println!("{:?}", db_subjects);
 }
 
 pub async fn handle_get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, reqwest::Error> {

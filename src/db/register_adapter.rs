@@ -22,7 +22,7 @@ impl RegisterAdapter {
 pub trait DbInteractions {
     async fn get_subject(&self, id: &str) -> Result<Subject, CouchError>;
     async fn create_subject(&self, details: Details) -> DocumentCreatedResult;
-    async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>>;
+    async fn get_subject_list(&self, limit: Option<u64>) -> CouchResult<DocumentCollection<Subject>>;
     async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError>;
 }
 
@@ -37,8 +37,13 @@ impl DbInteractions for RegisterAdapter {
         self.db.create(&mut subject_value).await
     }
 
-    async fn get_subject_list(&self) -> CouchResult<DocumentCollection<Subject>> {
-        self.db.get_all().await
+    async fn get_subject_list(&self, limit: Option<u64>) -> CouchResult<DocumentCollection<Subject>> {
+        if let Some(limit) = limit {
+            let query = FindQuery::find_all().limit(limit);
+            self.db.find(&query).await
+        } else {
+            self.db.get_all().await
+        }
     }
 
     async fn get_details(&self, oib: i64) -> Result<DocumentCollection<Details>, CouchError> {
