@@ -8,7 +8,6 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use warp::{Filter};
 
-use crate::handler;
 use crate::handler::handler::{Handler, HandlerInt};
 use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
 use crate::util::{with_handler, handle_subjects_from_register, check_db_for_new_subjects, handle_get_subject_details, map_details};
@@ -97,7 +96,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         .and(warp::get())
         .and(warp::query::<HashMap<String, i64>>())
         .map(|param: HashMap<String, i64>| match param.get("oib") {
-            Some(oib) => {println!("oib = {}", oib); oib.clone()},
+            Some(oib) =>  oib.clone(),
             //TODO handle no oib
             None => 0,
         })
@@ -111,7 +110,7 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
                 }
                 Err(err) => {
                     let json = warp::reply::json(&Failure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("Requset failed: {:?}", err)));
-                        Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+                    Box::new(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
                 }
             }
         });
@@ -156,10 +155,16 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
         Ok(details_from_db.unwrap().rows.into_iter().nth(0).unwrap())
     } else {
         let details_from_register = handle_get_subject_details(oib).await;
-        handle_create_subject(handler, details_from_register.as_ref().unwrap()).await;
         match details_from_register {
-            Ok(details) => Ok(map_details(details)),
-            Err(err) => Err(Error { message: "Error getting details from register".to_string() })
+            Ok(details) => {
+                if let Some(details) = details {
+                    handle_create_subject(handler, &details).await;
+                    Ok(map_details(details))
+                } else {
+                    Err(Error { message: "No entry found for given OIB".to_string() })
+                }
+            },
+            Err(_err) => Err(Error { message: "Error getting details from register".to_string() })
         }
     }
 }

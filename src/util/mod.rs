@@ -29,16 +29,25 @@ pub async fn check_db_for_new_subjects(subjects: Vec<RegisterSubject>) {
   println!("{:?}", db_subjects);
 }
 
-pub async fn handle_get_subject_details(oib: i64) -> Result<RegisterDetails, reqwest::Error> {
+pub async fn handle_get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, reqwest::Error> {
   let reqwest_client = reqwest::Client::new();
   //test oib: 76860791838
-  reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt_detalji?tipIdentifikatora=oib&identifikator={}", oib))
+  let temp = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt_detalji?tipIdentifikatora=oib&identifikator={}", oib))
     .header("Ocp-Apim-Subscription-Key", "fd2756eee54b4b25b59b586a9185ea3b")
     .send()
     .await
     .expect("failed to get a response")
-    .json::<RegisterDetails>()
-    .await
+    .json::<Option<RegisterDetails>>()
+    .await;
+  match temp {
+      Ok(val) => {
+        match val {
+          Some(details) => Ok(Some(details)),
+          None =>  Ok(val)
+        }
+      },
+      Err(err) => Err(err)
+  }
 }
 
 fn map_subjects(subjects: Vec<RegisterSubject>) -> Vec<Subject> {
