@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use warp::Filter;
 
-use crate::{handler::handler::Handler, model::{RegisterSubject, Subject, RegisterDetails, Details}};
+use crate::{handler::handler::Handler, model::{RegisterSubject, RegisterDetails, Details}};
 
 pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || handler.clone())
@@ -42,19 +42,6 @@ pub async fn handle_get_subject_details(oib: i64) -> Result<Option<RegisterDetai
       },
       Err(err) => Err(err)
   }
-}
-
-fn map_subjects(subjects: Vec<RegisterSubject>) -> Vec<Subject> {
-  let mut db_subjects = Vec::new();
-  for subject in subjects {
-    let db_subject = Subject {
-      _id: "".to_string(),
-      _rev: "".to_string(),
-      oib: subject.oib,
-    };
-    db_subjects.push(db_subject);
-  }
-  db_subjects
 }
 
 pub fn map_details(register_details: RegisterDetails) -> Details {
