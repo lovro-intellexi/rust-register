@@ -8,7 +8,7 @@ pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler
     warp::any().map(move || handler.clone())
   }
 
-pub async fn handle_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
+pub async fn get_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
   let reqwest_client = reqwest::Client::new();
   let result = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt/?offset=0&limit={}", limit))
       //use sud_reg_token from env when deployed
@@ -24,7 +24,7 @@ pub async fn handle_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
   }
 }
 
-pub async fn handle_get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, reqwest::Error> {
+pub async fn get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, reqwest::Error> {
   let reqwest_client = reqwest::Client::new();
   //test oib: 76860791838
   let temp = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt_detalji?tipIdentifikatora=oib&identifikator={}", oib))

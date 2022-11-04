@@ -10,7 +10,7 @@ use warp::{Filter};
 
 use crate::handler::handler::{Handler, HandlerInt};
 use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
-use crate::util::{with_handler, handle_subjects_from_register, handle_get_subject_details, map_details};
+use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -41,8 +41,9 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         })
         .and(with_handler(handler.clone()))
         .then(|limit: u64, handler: Arc<Handler>| async move {
-            let subjects_from_register: Vec<RegisterSubject> = handle_subjects_from_register(limit).await;
-            check_db_for_new_subjects(handler.clone(), subjects_from_register).await;
+            handle_get_subjects(handler.clone(), limit).await;
+            /* let subjects_from_register: Vec<RegisterSubject> = get_subjects_from_register(limit).await;
+            check_db_for_new_subjects(handler.clone(), subjects_from_register).await; */
             let result = handle_get_subject_list(handler, Some(limit)).await;
             match result {
                 Ok(response) => {
@@ -113,7 +114,7 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
     if !details_from_db.as_ref().unwrap().rows.is_empty() {
         Ok(details_from_db.unwrap().rows.into_iter().next().unwrap())
     } else {
-        let details_from_register = handle_get_subject_details(oib).await;
+        let details_from_register = get_subject_details(oib).await;
         match details_from_register {
             Ok(details) => {
                 if let Some(details) = details {
@@ -128,15 +129,39 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
     }
 }
 
-async fn check_db_for_new_subjects(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) {
+async fn handle_get_subjects(handler: Arc<Handler>, limit: u64) -> Result<Vec<Subject>, Error> {
+    let mut result: Vec<Subject> = Vec::new();
+    let subjects_from_db = handle_get_subject_list(handler.clone(), Some(limit)).await;
+    //fix cannot borrow as mutable (as_ref(), as_mut())
+    result.append(&mut subjects_from_db.as_mut().unwrap().rows);
+    let diff = limit - subjects_from_db.as_ref().unwrap().rows.len() as u64;
+    if diff > 0 {
+        let subjects_from_register = get_subjects_from_register(diff).await;
+        println!("Limit exceeds the number of subjects in db by: {}", subjects_from_register.len());
+        //check if subjects exist in db and add them
+        check_db_for_new_subjects(handler, subjects_from_register).await;
+        //add new subjects from register to Vec<Subject> for return
+
+        Ok(subjects_from_db.unwrap().rows)
+    } else {
+        Ok(subjects_from_db.unwrap().rows)
+    }
+}
+
+async fn check_db_for_new_subjects(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) -> Vec<Subject> {
+    let mut result: Vec<Subject> = Vec::new();
     for subject in subjects {
         let details_from_db = handle_get_details_from_db(handler.clone(), subject.oib).await;
         // check if subject exists in db
         if details_from_db.as_ref().unwrap().rows.is_empty() {
             match handle_create_subject(handler.clone(), &RegisterDetails { mbs: 0, oib: subject.oib }).await {
-                Ok(_) => println!("Subject with oib {} created", subject.oib),
+                Ok(created_result) => {
+                    println!("Subject with oib {} created", subject.oib); 
+                    result.push(Subject { _id: created_result.id, _rev: created_result.rev, oib: subject.oib })
+                },
                 Err(err) => println!("Error creating subject with oib: {}, error: {:?}", subject.oib, err)
             }
         }
     }
+    result
 }
