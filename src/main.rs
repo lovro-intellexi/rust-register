@@ -4,7 +4,7 @@ use db::RegisterAdapter;
 use handler::handler::Handler;
 use web::WebServer;
 
-use crate::{db::init_db};
+use crate::db::init_db;
 
 mod db;
 mod web;
@@ -16,6 +16,14 @@ const DEFAULT_WEB_PORT: u16 = 8080;
 
 #[tokio::main]
 async fn main() {
+    //use when deplayed in environment
+    //init env
+    /*let env = init_env().await.expect("Init env failed");
+    let env = Arc::new(env);
+    let db = init_db(env).await.expect("Init db failed");
+    let db = Arc::new(db)
+    */
+
     //init db
     let db = init_db().await.expect("Init db failed");
     let db = Arc::new(db);

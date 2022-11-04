@@ -14,5 +14,6 @@ environment:
   - DB_NAME="sudski_registar"
   - DB_USER="root"
   - DB_PASSWORD="pass"
+  - SUD_REG_TOKEN="fd2756eee54b4b25b59b586a9185ea3b"
 forward:
   - 8080:8080
