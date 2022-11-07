@@ -41,13 +41,10 @@ pub fn register_handler(handler: Arc<Handler>) -> impl Filter<Extract = impl war
         })
         .and(with_handler(handler.clone()))
         .then(|limit: u64, handler: Arc<Handler>| async move {
-            handle_get_subjects(handler.clone(), limit).await;
-            /* let subjects_from_register: Vec<RegisterSubject> = get_subjects_from_register(limit).await;
-            check_db_for_new_subjects(handler.clone(), subjects_from_register).await; */
-            let result = handle_get_subject_list(handler, Some(limit)).await;
+            let result = handle_get_subjects(handler.clone(), limit).await;
             match result {
                 Ok(response) => {
-                    let json = warp::reply::json(&response.get_data());
+                    let json = warp::reply::json(&response);
                     Box::new(warp::reply::with_status(json, StatusCode::OK))
                 }
                 Err(err) => {
@@ -132,19 +129,19 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
 async fn handle_get_subjects(handler: Arc<Handler>, limit: u64) -> Result<Vec<Subject>, Error> {
     let mut result: Vec<Subject> = Vec::new();
     let subjects_from_db = handle_get_subject_list(handler.clone(), Some(limit)).await;
-    //fix cannot borrow as mutable (as_ref(), as_mut())
-    result.append(&mut subjects_from_db.as_mut().unwrap().rows);
-    let diff = limit - subjects_from_db.as_ref().unwrap().rows.len() as u64;
+    let mut db_subjects: Vec<Subject> = subjects_from_db.unwrap().rows;
+    result.append(&mut db_subjects);
+    let diff = limit - result.len() as u64;
     if diff > 0 {
-        let subjects_from_register = get_subjects_from_register(diff).await;
+        let subjects_from_register = get_subjects_from_register(result.len(), diff).await;
         println!("Limit exceeds the number of subjects in db by: {}", subjects_from_register.len());
         //check if subjects exist in db and add them
-        check_db_for_new_subjects(handler, subjects_from_register).await;
+        let mut new_subjects = check_db_for_new_subjects(handler, subjects_from_register).await;
         //add new subjects from register to Vec<Subject> for return
-
-        Ok(subjects_from_db.unwrap().rows)
+        result.append(&mut new_subjects);
+        Ok(result)
     } else {
-        Ok(subjects_from_db.unwrap().rows)
+        Ok(result)
     }
 }
 

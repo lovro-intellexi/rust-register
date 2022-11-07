@@ -8,9 +8,9 @@ pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler
     warp::any().map(move || handler.clone())
   }
 
-pub async fn get_subjects_from_register(limit: u64) -> Vec<RegisterSubject> {
+pub async fn get_subjects_from_register(offset: usize, limit: u64) -> Vec<RegisterSubject> {
   let reqwest_client = reqwest::Client::new();
-  let result = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt/?offset=0&limit={}", limit))
+  let result = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt/?offset={}&limit={}", offset, limit))
       //use sud_reg_token from env when deployed
       .header("Ocp-Apim-Subscription-Key", "fd2756eee54b4b25b59b586a9185ea3b")
       .send()
