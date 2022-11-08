@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use db::RegisterAdapter;
-use handler::handler::Handler;
+use handler::Handler;
 use web::WebServer;
 
 use crate::db::init_db;

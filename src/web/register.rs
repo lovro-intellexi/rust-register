@@ -1,14 +1,14 @@
 use std::collections::HashMap;
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use couch_rs::document::DocumentCollection;
 use couch_rs::error::{CouchError, CouchResult};
-use couch_rs::types::document::{DocumentCreatedResult};
+use couch_rs::types::document::DocumentCreatedResult;
 use reqwest::StatusCode;
 use serde::Serialize;
-use warp::{Filter};
+use warp::Filter;
 
-use crate::handler::handler::{Handler, HandlerInt};
+use crate::handler::{Handler, HandlerInt};
 use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
 use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details};
 
@@ -115,8 +115,12 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
         match details_from_register {
             Ok(details) => {
                 if let Some(details) = details {
-                    handle_create_subject(handler, &details).await;
-                    Ok(map_details(details))
+                    let created_subject = handle_create_subject(handler, &details).await;
+                    if let Err(err) = created_subject {
+                        Err(Error { message: format!("Error while creating a subject: {:?}", err) })
+                    } else {
+                        Ok(map_details(details))
+                    }
                 } else {
                     Err(Error { message: "No entry found for given OIB".to_string() })
                 }

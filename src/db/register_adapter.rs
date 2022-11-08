@@ -1,7 +1,7 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use couch_rs::{error::{CouchError, CouchResult}, types::{document::DocumentCreatedResult, find::FindQuery}, document::{DocumentCollection}};
+use couch_rs::{error::{CouchError, CouchResult}, types::{document::DocumentCreatedResult, find::FindQuery}, document::DocumentCollection};
 use serde_json::json;
 
 use crate::model::{Subject, Details};

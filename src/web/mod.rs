@@ -1,7 +1,7 @@
 use warp::hyper::Error;
 
-use crate::{handler::{handler::Handler}};
-use std::{sync::Arc};
+use crate::handler::Handler;
+use std::sync::Arc;
 
 mod register;
 
