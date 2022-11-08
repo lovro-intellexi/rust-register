@@ -10,7 +10,7 @@ use warp::Filter;
 
 use crate::handler::{Handler, HandlerInt};
 use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
-use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details};
+use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details, map_subjects_from_register};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -139,8 +139,11 @@ async fn handle_get_subjects(handler: Arc<Handler>, limit: u64) -> Result<Vec<Su
     if diff > 0 {
         let subjects_from_register = get_subjects_from_register(result.len(), diff).await;
         println!("Limit exceeds the number of subjects in db by: {}", subjects_from_register.len());
-        //check if subjects exist in db and add them
-        let mut new_subjects = check_db_for_new_subjects(handler, subjects_from_register).await;
+        let mut new_subjects = map_subjects_from_register(subjects_from_register.as_ref());
+        //write new subjects in db in a separate job
+        tokio::spawn(async move {
+            write_new_subjects_to_db(handler, subjects_from_register).await
+        });
         //add new subjects from register to Vec<Subject> for return
         result.append(&mut new_subjects);
         Ok(result)
@@ -149,20 +152,13 @@ async fn handle_get_subjects(handler: Arc<Handler>, limit: u64) -> Result<Vec<Su
     }
 }
 
-async fn check_db_for_new_subjects(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) -> Vec<Subject> {
-    let mut result: Vec<Subject> = Vec::new();
+async fn write_new_subjects_to_db(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) {
     for subject in subjects {
-        let details_from_db = handle_get_details_from_db(handler.clone(), subject.oib).await;
-        // check if subject exists in db
-        if details_from_db.as_ref().unwrap().rows.is_empty() {
-            match handle_create_subject(handler.clone(), &RegisterDetails { mbs: 0, oib: subject.oib }).await {
-                Ok(created_result) => {
-                    println!("Subject with oib {} created", subject.oib); 
-                    result.push(Subject { _id: created_result.id, _rev: created_result.rev, oib: subject.oib })
-                },
-                Err(err) => println!("Error creating subject with oib: {}, error: {:?}", subject.oib, err)
-            }
+        match handle_create_subject(handler.clone(), &RegisterDetails { mbs: 0, oib: subject.oib }).await {
+            Ok(created_result) => {
+                println!("Subject with oib {} created, id: {}", subject.oib, created_result.id);
+            },
+            Err(err) => println!("Error creating subject with oib: {}, error: {:?}", subject.oib, err)
         }
     }
-    result
 }

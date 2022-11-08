@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use warp::Filter;
 
-use crate::{handler::Handler, model::{RegisterSubject, RegisterDetails, Details}};
+use crate::{handler::Handler, model::{RegisterSubject, RegisterDetails, Details, Subject}};
 
 pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || handler.clone())
@@ -10,6 +10,7 @@ pub fn with_handler(handler: Arc<Handler>) -> impl Filter<Extract = (Arc<Handler
 
 pub async fn get_subjects_from_register(offset: usize, limit: u64) -> Vec<RegisterSubject> {
   let reqwest_client = reqwest::Client::new();
+  println!("offset: {}, limit: {}", offset, limit);
   let result = reqwest_client.get(format!("https://sudreg-api.pravosudje.hr/javni/subjekt/?offset={}&limit={}", offset, limit))
       //use sud_reg_token from env when deployed
       .header("Ocp-Apim-Subscription-Key", "fd2756eee54b4b25b59b586a9185ea3b")
@@ -53,4 +54,16 @@ pub fn map_details(register_details: RegisterDetails) -> Details {
     mbs: register_details.mbs,
     oib: register_details.oib
   }
+}
+
+pub fn map_subjects_from_register(subjects_from_register: &Vec<RegisterSubject>) -> Vec<Subject> {
+  let mut result: Vec<Subject> = Vec::new(); 
+  for subject in subjects_from_register {
+    result.push(Subject {
+      _id: "".to_string(),
+      _rev: "".to_string(),
+      oib: subject.oib
+    })
+  }
+  result
 }
