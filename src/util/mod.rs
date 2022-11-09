@@ -21,7 +21,7 @@ pub async fn get_subjects_from_register(offset: usize, limit: u64) -> Vec<Regist
       .await;
   match result {
     Ok(register_subjects) => register_subjects,
-    Err(_err) => {println!("Error fetching subjects from register, returing empty array."); Vec::new()}
+    Err(err) => {println!("Error fetching subjects from register, returing empty array... error: {:?}", err); Vec::new()}
   }
 }
 
@@ -43,7 +43,7 @@ pub async fn get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, re
           None =>  Ok(val)
         }
       },
-      Err(err) => Err(err)
+      Err(err) => {println!("Error fetching subject details from register... error: {:?}", err); Err(err)}
   }
 }
 
