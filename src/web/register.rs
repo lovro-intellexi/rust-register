@@ -9,8 +9,8 @@ use serde::Serialize;
 use warp::Filter;
 
 use crate::handler::{Handler, HandlerInt};
-use crate::model::{Subject, RegisterSubject, RegisterDetails, Details, Error};
-use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details, map_subjects_from_register};
+use crate::model::{Subject, RegisterDetails, Details, Error, RegisterSubject};
+use crate::util::{with_handler, get_subjects_from_register, get_subject_details, map_details, map_subjects_from_register, get_new_subjects};
 
 #[derive(Serialize)]
 pub struct Failure {
@@ -133,26 +133,29 @@ async fn handle_subject_details(handler: Arc<Handler>, oib: i64) -> Result<Detai
 async fn handle_get_subjects(handler: Arc<Handler>, limit: u64) -> Result<Vec<Subject>, Error> {
     let mut result: Vec<Subject> = Vec::new();
     let subjects_from_db = handle_get_subject_list(handler.clone(), Some(limit)).await;
-    let mut db_subjects: Vec<Subject> = subjects_from_db.unwrap().rows;
-    result.append(&mut db_subjects);
+    let db_subjects: Vec<Subject> = subjects_from_db.unwrap().rows;
+    result.append(&mut db_subjects.clone());
     let diff = limit - result.len() as u64;
     if diff > 0 {
         let subjects_from_register = get_subjects_from_register(result.len(), diff).await;
-        println!("Limit exceeds the number of subjects in db by: {}", subjects_from_register.len());
-        let mut new_subjects = map_subjects_from_register(subjects_from_register.as_ref());
+        let new_subjects = map_subjects_from_register(subjects_from_register.as_ref());
+        let subjects_to_write = get_new_subjects(&db_subjects, &new_subjects).await;
+        result.append(&mut subjects_to_write.clone());
+        //check if there are subjects that haven't been written because of offset
+        if diff != subjects_to_write.len() as u64 {
+            write_missing_subjects(handler.clone(), db_subjects, (result.clone().len() as u64 + diff) as u64).await;
+        };
         //write new subjects in db in a separate job
         tokio::spawn(async move {
-            write_new_subjects_to_db(handler, subjects_from_register).await
+            write_new_subjects_to_db(handler, subjects_to_write).await
         });
-        //add new subjects from register to Vec<Subject> for return
-        result.append(&mut new_subjects);
         Ok(result)
     } else {
         Ok(result)
     }
 }
 
-async fn write_new_subjects_to_db(handler: Arc<Handler>, subjects: Vec<RegisterSubject>) {
+async fn write_new_subjects_to_db(handler: Arc<Handler>, subjects: Vec<Subject>) {
     for subject in subjects {
         match handle_create_subject(handler.clone(), &RegisterDetails { mbs: 0, oib: subject.oib }).await {
             Ok(created_result) => {
@@ -161,4 +164,13 @@ async fn write_new_subjects_to_db(handler: Arc<Handler>, subjects: Vec<RegisterS
             Err(err) => println!("Error creating subject with oib: {}, error: {:?}", subject.oib, err)
         }
     }
+}
+
+async fn write_missing_subjects(handler: Arc<Handler>, db_subjects: Vec<Subject>, limit: u64) {
+    //tokio spawn in separate fn to deal with moving handler and db_subjects
+    tokio::spawn(async move {
+        let register_subjects: Vec<RegisterSubject> = get_subjects_from_register(0, limit).await;
+        let new_subjects = get_new_subjects(&db_subjects, &map_subjects_from_register(register_subjects.as_ref())).await;
+        write_new_subjects_to_db(handler, new_subjects).await
+    });
 }

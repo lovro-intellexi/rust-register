@@ -47,6 +47,16 @@ pub async fn get_subject_details(oib: i64) -> Result<Option<RegisterDetails>, re
   }
 }
 
+pub async fn get_new_subjects(db_subjects: &[Subject], register_subjects: &[Subject]) -> Vec<Subject> {
+  let mut result: Vec<Subject> = Vec::new();
+  for register_subject in register_subjects {
+    if !db_subjects.iter().any(|sub| sub.oib == register_subject.oib) {
+      result.push(register_subject.clone());
+    }
+  }
+  result
+}
+
 pub fn map_details(register_details: RegisterDetails) -> Details {
   Details {
     _id: "".to_string(),

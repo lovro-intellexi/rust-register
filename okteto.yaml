@@ -10,10 +10,10 @@ autocreate: true
 persistentVolume:
   enabled: false
 environment:
-  - DB_HOST="http://localhost:5984"
-  - DB_NAME="sudski_registar"
-  - DB_USER="root"
-  - DB_PASSWORD="pass"
-  - SUD_REG_TOKEN="fd2756eee54b4b25b59b586a9185ea3b"
+  - DB_HOST=http://registar-couchdb-svc-couchdb:5984
+  - DB_NAME=sudski_registar
+  - DB_USER=admin
+  - DB_PASSWORD=CXWkxgN8F5bEco6j1UOy
+  - SUD_REG_TOKEN=fd2756eee54b4b25b59b586a9185ea3b
 forward:
   - 8080:8080

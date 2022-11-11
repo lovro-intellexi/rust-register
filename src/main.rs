@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use db::RegisterAdapter;
+use env::init_env;
 use handler::Handler;
 use web::WebServer;
 
@@ -11,6 +12,7 @@ mod web;
 mod model;
 mod handler;
 mod util;
+mod env;
 
 const DEFAULT_WEB_PORT: u16 = 8080;
 
@@ -18,14 +20,11 @@ const DEFAULT_WEB_PORT: u16 = 8080;
 async fn main() {
     //use when deplayed in environment
     //init env
-    /*let env = init_env().await.expect("Init env failed");
+    let env = init_env().await.expect("Init env failed");
     let env = Arc::new(env);
-    let db = init_db(env).await.expect("Init db failed");
-    let db = Arc::new(db)
-    */
 
     //init db
-    let db = init_db().await.expect("Init db failed");
+    let db = init_db(env).await.expect("Init db failed");
     let db = Arc::new(db);
 
     //init register adapter
